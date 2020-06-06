@@ -38,8 +38,8 @@ void loop() {
     // handle any events that are in the queue
     eventManager.processAllEvents();
     
-    // readUltrasonic();
-    // detectPhone();
+     readUltrasonic();
+     detectPhone();
 
     ZoomBoxFriend_signalAvailability();
     ZoomBoxFriend_signalStartCall();
