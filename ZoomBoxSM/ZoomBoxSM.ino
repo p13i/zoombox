@@ -8,16 +8,32 @@
  * the ZoomBox device. Automatically launches a Zoom 
  * call by detecting a wave gesture. 
  **************************************************/
+
+/* Dependencies:
+ *  https://github.com/adafruit/Adafruit_MQTT_Library
+ *  https://github.com/knolleary/pubsubclient
+ */
  
 #include <Adafruit_NeoPixel.h>
 #include <Arduino_LSM6DS3.h>
 #include "EventManager.h"
 #include "Ultrasonic.h"
+#include <TimeLib.h>
+#include <WiFiNINA.h>
 
 //---------------------------------
 //      Defintions & Variables     
 //---------------------------------
 
+#define DEBUG true
+#define DEBUG_PRINT(msg) if (DEBUG) Serial.print(msg);
+#define DEBUG_PRINTLN(msg) if (DEBUG) Serial.println(msg);
+
+#define ARRAY_LENGTH(array) ((sizeof(array))/(sizeof(array[0])))
+
+const int LOOP_DELAY_PERIOD = 5000;
+
+// Pin definitions
 #define LIGHT_SENSOR_PIN A2 
 #define LED_STICK_PIN 6 
 #define NUMPIXELS 10
@@ -32,6 +48,8 @@ Adafruit_NeoPixel pixels(NUMPIXELS, LED_STICK_PIN, NEO_GRB + NEO_KHZ800);
 
 // configure ultrasonic sensor library 
 Ultrasonic sensor(ULTRA_SENSOR_PIN);
+
+WiFiSSLClient ZoomBoxWifi_wifi;
 
 // gesture recognition variables
 int analogUltraVal;
@@ -51,42 +69,22 @@ int active = 50;
 unsigned long ledStartTime;
 int ledState = 0; // 1 iff LED currently lit
 
+
+
 //---------------------------------
 //     Event & State Variables     
 //---------------------------------
 EventManager eventManager;
 #define EVENT_WAVE_DETECTED EventManager::kEventUser0
-#define EVENT_PHONE_DOCKED EventManager::kEventUser0
-#define EVENT_PHONE_REMOVED EventManager::kEventUser0
+#define EVENT_PHONE_DOCKED EventManager::kEventUser1
+#define EVENT_PHONE_REMOVED EventManager::kEventUser2
+#define EVENT_FRIEND_AVAILABLE EventManager::kEventUser3
+#define EVENT_FRIEND_STARTED_CALL EventManager::kEventUser4
+#define EVENT_FRIEND_LEFT_CALL EventManager::kEventUser4
 
 // states for state machine
 enum SystemState_t {STATE_ON_CALL, STATE_WAITING, STATE_IDLE};
 SystemState_t currentState = STATE_IDLE;
-
-void setup() {
-    Serial.begin(9600); // initialize serial
-    while (!Serial); // wait for serial to connect
-    
-    pixels.begin(); // initialize NeoPixel strip object 
-    pixels.clear();
-
-    pinMode(LED_PIN, OUTPUT); // arduino LED
-
-    // initialize state machine as a listener for events
-    eventManager.addListener(EVENT_WAVE_DETECTED, ZOOMBOX_SM);
-    eventManager.addListener(EVENT_PHONE_DOCKED, ZOOMBOX_SM);
-    eventManager.addListener(EVENT_PHONE_REMOVED, ZOOMBOX_SM);
-
-    // initialize LED state machine
-    ZOOMBOX_SM(STATE_IDLE,0);
-}
-
-void loop() {
-    // handle any events that are in the queue
-    eventManager.processEvent();
-    readUltrasonic();
-    detectPhone();
-}
 
 //---------------------------------
 //        Functions 
@@ -211,8 +209,7 @@ void detectPhone() {
 
 }
 
-
- //---------------------------------
+//---------------------------------
 //           State Machine  
 //---------------------------------
 /* Responds to events based on the current state. */
@@ -225,6 +222,9 @@ void ZOOMBOX_SM( int event, int param) {
         case STATE_IDLE:
             if (event == EVENT_PHONE_DOCKED) {
               Serial.println("IDLE -> phone detected");
+
+              ZoomBoxFriend_signalAvailability();
+              
               signalFriends(waiting); // turn on LED on friends devices 
               nextState = STATE_WAITING;
             } 
@@ -235,15 +235,31 @@ void ZOOMBOX_SM( int event, int param) {
             if (event == EVENT_WAVE_DETECTED) {
               Serial.println("WAITING -> wave detected");
               // launch zoom call
+              ZoomBoxFriend_signalStartCall();
+              
               signalFriends(active); // make brighter LED on friends devices 
               nextState = STATE_ON_CALL;
             }  
 
            if (event == EVENT_PHONE_REMOVED) {
               Serial.println("WAITING -> phone removed");
+              
+              ZoomBoxFriend_signalLeaveCall();
+              
               goIdle(); // turn off LEDs on friends devices
               nextState = STATE_IDLE;  
-            } 
+            }
+
+            if (event == EVENT_FRIEND_AVAILABLE) {
+              Serial.print("WAITING -> friend available #");
+              Serial.println(param);
+            }
+            
+            if (event == EVENT_FRIEND_STARTED_CALL) {
+              Serial.print("WAITING -> friend started zoom call: ");
+              Serial.println(getFriendName(param));
+              nextState = STATE_ON_CALL;
+            }
 
             break;          
         case STATE_ON_CALL:
@@ -260,6 +276,14 @@ void ZOOMBOX_SM( int event, int param) {
               goIdle(); // turn off LEDs on friends devices
               nextState = STATE_IDLE;
             } 
+
+            if (event == EVENT_FRIEND_LEFT_CALL) {
+              Serial.print("ON CALL-> friend left call: ");
+              Serial.println(getFriendName(param));
+              
+              goIdle(); // turn off LEDs on friends devices
+              nextState = STATE_IDLE;
+            }
 
             break;         
         default:
