@@ -42,6 +42,7 @@ const int LOOP_DELAY_PERIOD = 5000;
 #define LED_PIN LED_BUILTIN
 #define LED_ON_TIME_MS 2000 // duration of time for LED to light on gesture detection
 #define TIMEOUT 5000 // duration of time for LED to light on gesture detection
+//#define DELAY_TIME_MS 5 // 100, delay (in milliseconds) between measurements
 
 // configure the NeoPixel library
 Adafruit_NeoPixel pixels(NUMPIXELS, LED_STICK_PIN, NEO_GRB + NEO_KHZ800);
@@ -60,8 +61,8 @@ int featureCount = 0;
 
 // phone detection variables
 int currentLightVal = 0;   // variable to store the value coming from sensor
-int prevLightVal = 0; // variable to store previous value of sensor
-int phoneThresh = 400; 
+bool docked = 0;
+int phoneThresh = 200; 
 int waiting = 10; //brightness level of LED
 int active = 50;
 
@@ -170,24 +171,22 @@ void readUltrasonic() {
     digitalWrite(LED_PIN, LOW); 
   }
 
-  convertUltraVal(sensor.MeasureInCentimeters()); 
-  
-  if (analogUltraVal > 0) { // filter out 0 readings
-    detectWaveFeature();
+  convertUltraVal(sensor.MeasureInCentimeters());  
+  detectWaveFeature();
 
-    if (featureCount == 3) { // if wave detected
-      eventManager.queueEvent(EVENT_WAVE_DETECTED, eventParameter);
+  if (featureCount == 10) { // if wave detected
+    signalFriends(active); // make brighter LED on friends devices 
+    eventManager.queueEvent(EVENT_WAVE_DETECTED, eventParameter);
 
-      // turn on LED for 2 seconds
-      ledState = 1;
-      ledStartTime = millis();
-      digitalWrite(LED_PIN, HIGH);   
+    // turn on LED for 2 seconds
+    ledState = 1;
+    ledStartTime = millis();
+    digitalWrite(LED_PIN, HIGH);   
          
-      // reset check
-      feature2 = false; 
-      feature1 = true;
-      featureCount = 0;
-    }
+    // reset check
+    feature2 = false; 
+    feature1 = true;
+    featureCount = 0;
   }
 }
 
@@ -200,13 +199,17 @@ void detectPhone() {
 
   currentLightVal = analogRead(LIGHT_SENSOR_PIN); 
   
-  if (currentLightVal < phoneThresh && prevLightVal > phoneThresh) {
+  if (currentLightVal < phoneThresh && docked == 0) {
+      docked = 1;
+     signalFriends(waiting); // turn on LED on friends devices 
      eventManager.queueEvent(EVENT_PHONE_DOCKED, eventParameter);
-  } else if (currentLightVal > phoneThresh && prevLightVal < phoneThresh) {
+     //Serial.println("phone docked");
+  } else if (currentLightVal > phoneThresh && docked == 1) {
+     docked = 0;
+     goIdle(); // turn off LEDs on friends devices
      eventManager.queueEvent(EVENT_PHONE_REMOVED, eventParameter);
+     Serial.println("phone removed");
   }
-  prevLightVal = currentLightVal;
-
 }
 
 //---------------------------------
@@ -221,34 +224,21 @@ void ZOOMBOX_SM( int event, int param) {
     switch (currentState) { 
         case STATE_IDLE:
             if (event == EVENT_PHONE_DOCKED) {
-              Serial.println("IDLE -> phone detected");
-
-              ZoomBoxFriend_signalAvailability();
-              
-              signalFriends(waiting); // turn on LED on friends devices 
+              ZoomBoxFriend_signalAvailability();       
               nextState = STATE_WAITING;
             } 
   
             break;          
         case STATE_WAITING:
-        
-            if (event == EVENT_WAVE_DETECTED) {
-              Serial.println("WAITING -> wave detected");
-              // launch zoom call
-              ZoomBoxFriend_signalStartCall();
-              
-              signalFriends(active); // make brighter LED on friends devices 
+            if (event == EVENT_PHONE_REMOVED) {
+              //Serial.println("WAITING -> phone removed");
+              ZoomBoxFriend_signalLeaveCall();
+              nextState = STATE_IDLE;  
+            } else if (event == EVENT_WAVE_DETECTED) {
+              //Serial.println("WAITING -> wave detected");
+              ZoomBoxFriend_signalStartCall(); // launch zoom call
               nextState = STATE_ON_CALL;
             }  
-
-           if (event == EVENT_PHONE_REMOVED) {
-              Serial.println("WAITING -> phone removed");
-              
-              ZoomBoxFriend_signalLeaveCall();
-              
-              goIdle(); // turn off LEDs on friends devices
-              nextState = STATE_IDLE;  
-            }
 
             if (event == EVENT_FRIEND_AVAILABLE) {
               Serial.print("WAITING -> friend available #");
@@ -263,20 +253,16 @@ void ZOOMBOX_SM( int event, int param) {
 
             break;          
         case STATE_ON_CALL:
-        
-            if (event == EVENT_WAVE_DETECTED) {
-              Serial.println("ON CALL-> wave detected");
+            if (event == EVENT_PHONE_REMOVED) {
+              //Serial.println("ON CALL-> phone removed");
+              nextState = STATE_IDLE;
+            } else if(event == EVENT_WAVE_DETECTED) {
+              //Serial.println("ON CALL-> wave detected");
               // end zoom call
               signalFriends(waiting); // lower LED brightness
               nextState = STATE_WAITING;
             } 
             
-            if (event == EVENT_PHONE_REMOVED) {
-              Serial.println("ON CALL-> phone removed");
-              goIdle(); // turn off LEDs on friends devices
-              nextState = STATE_IDLE;
-            } 
-
             if (event == EVENT_FRIEND_LEFT_CALL) {
               Serial.print("ON CALL-> friend left call: ");
               Serial.println(getFriendName(param));
