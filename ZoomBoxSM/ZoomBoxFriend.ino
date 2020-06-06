@@ -18,7 +18,7 @@ class Friend {
 Friend friends[] = { 
   Friend(
     /* name: */ "Delara",
-    /* feed: */ "",
+    /* feed: */ "dmohtasham/feeds/zoombox",
     /* id: */ 1), 
   Friend(
     /* name: */ "Pramod",
