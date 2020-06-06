@@ -10,8 +10,9 @@ void setup() {
 
     // Setup MQTT
     ZoomBoxWiFi_setup();
-    
     ZoomBoxMQTT_setup();
+
+    MQTT_startTime = millis();
 
     for (int i = 0; i < ARRAY_LENGTH(friends); i++) {
       if (friends[i].feed && friends[i].feed.length() > 0) {
@@ -38,10 +39,14 @@ void loop() {
     // handle any events that are in the queue
     eventManager.processAllEvents();
     
-     readUltrasonic();
-     detectPhone();
+    readUltrasonic();
+    detectPhone();
 
-    ZoomBoxMQTT_loop();
+    unsigned long MQTT_currentTime = millis();
+    if ((MQTT_currentTime - MQTT_startTime) > 5000) {
+      ZoomBoxMQTT_loop();
+      MQTT_startTime = MQTT_currentTime;
+    }
 
     delay(LOOP_DELAY_PERIOD);
 }

@@ -31,7 +31,7 @@
 
 #define ARRAY_LENGTH(array) ((sizeof(array))/(sizeof(array[0])))
 
-const int LOOP_DELAY_PERIOD = 5000;
+const int LOOP_DELAY_PERIOD = 5;
 
 // Pin definitions
 #define LIGHT_SENSOR_PIN A2 
@@ -42,7 +42,6 @@ const int LOOP_DELAY_PERIOD = 5000;
 #define LED_PIN LED_BUILTIN
 #define LED_ON_TIME_MS 2000 // duration of time for LED to light on gesture detection
 #define TIMEOUT 5000 // duration of time for LED to light on gesture detection
-//#define DELAY_TIME_MS 5 // 100, delay (in milliseconds) between measurements
 
 // configure the NeoPixel library
 Adafruit_NeoPixel pixels(NUMPIXELS, LED_STICK_PIN, NEO_GRB + NEO_KHZ800);
@@ -70,6 +69,8 @@ int active = 50;
 unsigned long ledStartTime;
 int ledState = 0; // 1 iff LED currently lit
 
+// MQTT timer 
+unsigned long MQTT_startTime;
 
 
 //---------------------------------
@@ -177,7 +178,7 @@ void readUltrasonic() {
   if (featureCount == 10) { // if wave detected
     signalFriends(active); // make brighter LED on friends devices 
     eventManager.queueEvent(EVENT_WAVE_DETECTED, eventParameter);
-
+    //Serial.println("wave detected");
     // turn on LED for 2 seconds
     ledState = 1;
     ledStartTime = millis();
@@ -208,7 +209,7 @@ void detectPhone() {
      docked = 0;
      goIdle(); // turn off LEDs on friends devices
      eventManager.queueEvent(EVENT_PHONE_REMOVED, eventParameter);
-     Serial.println("phone removed");
+     //Serial.println("phone removed");
   }
 }
 
@@ -241,13 +242,13 @@ void ZOOMBOX_SM( int event, int param) {
             }  
 
             if (event == EVENT_FRIEND_AVAILABLE) {
-              Serial.print("WAITING -> friend available #");
-              Serial.println(param);
+              //Serial.print("WAITING -> friend available #");
+              //Serial.println(param);
             }
             
             if (event == EVENT_FRIEND_STARTED_CALL) {
-              Serial.print("WAITING -> friend started zoom call: ");
-              Serial.println(getFriendName(param));
+              //Serial.print("WAITING -> friend started zoom call: ");
+              //Serial.println(getFriendName(param));
               nextState = STATE_ON_CALL;
             }
 
