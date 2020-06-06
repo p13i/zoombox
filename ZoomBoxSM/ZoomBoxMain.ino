@@ -41,10 +41,6 @@ void loop() {
      readUltrasonic();
      detectPhone();
 
-    ZoomBoxFriend_signalAvailability();
-    ZoomBoxFriend_signalStartCall();
-    ZoomBoxFriend_signalLeaveCall();
-
     ZoomBoxMQTT_loop();
 
     delay(LOOP_DELAY_PERIOD);
