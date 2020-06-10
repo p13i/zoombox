@@ -178,7 +178,7 @@ void readUltrasonic() {
     detectWaveFeature();
 
   if (featureCount == 10) { // if wave detected
-    signalFriends(active); // make brighter LED on friends devices 
+   
     eventManager.queueEvent(EVENT_WAVE_DETECTED, eventParameter);
     //Serial.println("wave detected");
     // turn on LED for 2 seconds
