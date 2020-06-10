@@ -42,11 +42,9 @@ void loop() {
     detectWave();
     detectPhone();
 
-    unsigned long MQTT_currentTime = millis();
-    if ((MQTT_currentTime - MQTT_startTime) > 5000) {
-      ZoomBoxMQTT_loop();
-      MQTT_startTime = MQTT_currentTime;
-    }
+    
+    ZoomBoxMQTT_connect();
+    ZoomBoxMQTT_loop();
 
     delay(250);
 }

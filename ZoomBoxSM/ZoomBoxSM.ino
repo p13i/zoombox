@@ -1,4 +1,4 @@
-/**************************************************
+ /**************************************************
  * ME216M final project
  * Spring 2020
  * 
@@ -319,7 +319,7 @@ void ZOOMBOX_SM( int event, int param) {
         
             if (event == EVENT_WAVE_DETECTED) {
               Serial.println("ON CALL-> wave detected");
-              // end zoom call
+              ZoomBoxFriend_signalLeaveCall();
               signalFriends(waiting); // lower LED brightness
               nextState = STATE_WAITING;
             } 
