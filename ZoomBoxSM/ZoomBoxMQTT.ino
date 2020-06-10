@@ -113,7 +113,9 @@ void ZoomBoxMQTT_callback(char *topic, byte *payload, unsigned int payloadLength
 
   char message = (char) payload[0];
   
-  Serial.print("mqttCallback > ");
+  Serial.print("ZoomBoxMQTT_callback [");
+  Serial.print(topic);
+  Serial.print("] ");
   Serial.println(message);
 
   if (message == Friend::AVAILABLE) {

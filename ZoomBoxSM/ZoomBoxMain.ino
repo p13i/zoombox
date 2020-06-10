@@ -1,4 +1,6 @@
 
+long lastMqttRun;
+
 void setup() {
     Serial.begin(9600); // initialize serial
     while (!Serial); // wait for serial to connect
@@ -37,7 +39,7 @@ void setup() {
 
 void loop() {
     // handle any events that are in the queue
-    eventManager.processAllEvents();
+    eventManager.processEvent();
     
     readUltrasonic();
     detectPhone();
@@ -48,5 +50,5 @@ void loop() {
       MQTT_startTime = MQTT_currentTime;
     }
 
-    delay(LOOP_DELAY_PERIOD);
+    delay(250);
 }
