@@ -6,10 +6,6 @@
 //---------------------------------
 #define LED_PIN LED_BUILTIN
 
-// WiFi Credentials
-const char *ZoomBoxWiFi_ssid = "VPPK_2020";
-const char *ZoomBoxWiFi_password = "bangalore";
-
 // MQTT Parameters (defined in config.h)
 const char* ZoomBoxMQTT_server            = "io.adafruit.com";
 const char* ZoomBoxMQTT_username          = "p13i";
@@ -30,8 +26,8 @@ int counter = 0;
 void ZoomBoxMQTT_setup() {
   // Connect to WiFi:
   Serial.print("Connecting to ");
-  Serial.println(ZoomBoxWiFi_ssid);
-  WiFi.begin(ZoomBoxWiFi_ssid, ZoomBoxWiFi_password);
+  Serial.println(ZoomBoxWiFi_SSID);
+  WiFi.begin(ZoomBoxWiFi_SSID, ZoomBoxWiFi_Password);
   
   while (WiFi.status() != WL_CONNECTED) 
   {
@@ -112,20 +108,22 @@ bool ZoomBoxMQTT_publish(const char *topic, const char payload) {
 void ZoomBoxMQTT_callback(char *topic, byte *payload, unsigned int payloadLength) {
 
   char message = (char) payload[0];
+  char friendId = (char) payload[2];
   
   Serial.print("ZoomBoxMQTT_callback [");
   Serial.print(topic);
-  Serial.print("] ");
-  Serial.println(message);
+  Serial.print("] message=");
+  Serial.print(message);
+  Serial.print(", friendId=");
+  Serial.print(friendId);
+  Serial.println();
+  
 
   if (message == Friend::AVAILABLE) {
-    int friendId = getFriendId(topic);
     eventManager.queueEvent(EVENT_FRIEND_AVAILABLE, friendId);
   } else if (message == Friend::START_CALL) {
-    int friendId = getFriendId(topic);
     eventManager.queueEvent(EVENT_FRIEND_STARTED_CALL, friendId);
   } else if (message == Friend::LEAVE_CALL) {
-    int friendId = getFriendId(topic);
     eventManager.queueEvent(EVENT_FRIEND_LEFT_CALL, friendId);
   }
 }

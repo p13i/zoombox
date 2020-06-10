@@ -21,13 +21,19 @@
 #include <TimeLib.h>
 #include <WiFiNINA.h>
 
+// SETUP: Set your own settings here:
+const char* ZoomBoxWiFi_SSID = "VPPK_2020";
+const char* ZoomBoxWiFi_Password = "bangalore";
+const char* ZoomBoxMQTT_SharedFeed = "p13i/feeds/zoombox";
+const int   ZoomBoxFriend_MeIndex = 1;
+const int   ZoomBoxSM_waveMinThreshold = 40;
+const int   ZoomBoxSM_waveMaxThreshold = 70;
+
 //---------------------------------
 //      Defintions & Variables     
 //---------------------------------
 
 #define DEBUG true
-#define DEBUG_PRINT(msg) if (DEBUG) Serial.print(msg);
-#define DEBUG_PRINTLN(msg) if (DEBUG) Serial.println(msg);
 
 #define ARRAY_LENGTH(array) ((sizeof(array))/(sizeof(array[0])))
 
@@ -72,6 +78,20 @@ int ledState = 0; // 1 iff LED currently lit
 // MQTT timer 
 unsigned long MQTT_startTime;
 
+uint32_t rainbow[NUMPIXELS] = {
+  pixels.Color(148, 0, 211),  // light purple
+  pixels.Color(75, 0, 130),   // dark purple
+  pixels.Color(0, 0, 255),    // blue
+  pixels.Color(0, 255, 0),    // green
+  pixels.Color(255, 255, 0),  // yellow
+  pixels.Color(255, 127, 0),  // orange
+  pixels.Color(255, 0, 0),    // red
+  pixels.Color(255, 255, 255),    // red
+  pixels.Color(255, 255, 255),    // red
+  pixels.Color(255, 255, 255),    // red
+};
+
+uint32_t PIXEL_OFF = pixels.Color(0, 0, 0);
 
 //---------------------------------
 //     Event & State Variables     
@@ -105,6 +125,35 @@ void signalFriends(int brightnessLevel) {
     pixels.show();   // send the updated pixel colors to the hardware
 }
 
+void turnOnAllLedsWithRainbow() {
+}
+
+void turnOffAllLeds() {
+}
+
+void signalWiFiConnected() {
+  pixels.clear();
+
+  // The number of lights we should be cycling through
+  const int maxIterationLights = 50;
+
+  for (int i = 0; i < maxIterationLights; i++) {
+    int lightIndex = i % NUMPIXELS;
+    int previousLightIndex = lightIndex > 0 ? lightIndex - 1 : NUMPIXELS - 1;
+    // Turn off the previous pixel
+    pixels.setPixelColor(previousLightIndex, PIXEL_OFF);
+    // Turn on current pixel
+    pixels.setPixelColor(lightIndex, rainbow[lightIndex]);
+    pixels.setBrightness(50);
+    pixels.show();
+    
+    delay(100);
+  }
+
+  pixels.clear();
+  pixels.show();
+}
+
 /* convertUltraVal
  *  converts ultrasonic reading to analog
  *  @param intVal - raw reading from ultrasonic
@@ -129,14 +178,14 @@ void convertUltraVal(int intVal) {
 void detectWaveFeature() {
   int currentTime = millis();
   
-  if (analogUltraVal < 70 && feature1) { // dip in reading
+  if (analogUltraVal < ZoomBoxSM_waveMinThreshold && feature1) { // dip in reading
     feature1 = false;
     feature2 = true; 
     startTime = millis();
     featureCount++;
   }
 
-  if (analogUltraVal > 90 && feature2) { // peaks in reading 
+  if (analogUltraVal > ZoomBoxSM_waveMaxThreshold && feature2) { // peaks in reading 
     feature2 = false; 
     feature1 = true;
     //startTime1 = millis();
@@ -159,12 +208,12 @@ void detectWaveFeature() {
  *  (and any corresponding parameters) to the event 
  * queue, to be handled by the state machine. */
 
-/* readUltrasonic
+/* detectWave
  *  reads ultrasonic sensor and calls detectWaveFeature()
  *  to determine if user has waved
  *  @param none
  *  @return none  */
-void readUltrasonic() {
+void detectWave() {
   int eventParameter = 0; 
 
   // turns off LED after timeout period
@@ -177,8 +226,10 @@ void readUltrasonic() {
   if (analogUltraVal > 0) { // filter out 0 readings
     detectWaveFeature();
 
-  if (featureCount == 10) { // if wave detected
-   
+  if (featureCount == 5) { 
+    Serial.println("Detected wave!");
+    // if wave detected
+    signalFriends(active); // make brighter LED on friends devices 
     eventManager.queueEvent(EVENT_WAVE_DETECTED, eventParameter);
     //Serial.println("wave detected");
     // turn on LED for 2 seconds
@@ -253,13 +304,13 @@ void ZOOMBOX_SM( int event, int param) {
             }
 
             if (event == EVENT_FRIEND_AVAILABLE) {
-              //Serial.print("WAITING -> friend available #");
-              //Serial.println(param);
+              Serial.print("WAITING -> friend available id=");
+              Serial.println((char) param);
             }
             
             if (event == EVENT_FRIEND_STARTED_CALL) {
-              //Serial.print("WAITING -> friend started zoom call: ");
-              //Serial.println(getFriendName(param));
+              Serial.print("WAITING -> friend started zoom call id=");
+              Serial.println((char) param);
               nextState = STATE_ON_CALL;
             }
 
@@ -280,8 +331,8 @@ void ZOOMBOX_SM( int event, int param) {
             } 
 
             if (event == EVENT_FRIEND_LEFT_CALL) {
-              Serial.print("ON CALL-> friend left call: ");
-              Serial.println(getFriendName(param));
+              Serial.print("ON CALL-> friend left call id=");
+              Serial.println((char) param);
               
               goIdle(); // turn off LEDs on friends devices
               nextState = STATE_IDLE;

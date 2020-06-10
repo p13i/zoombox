@@ -12,18 +12,16 @@ void setup() {
 
     // Setup MQTT
     ZoomBoxWiFi_setup();
+    
+    signalWiFiConnected();
+    
     ZoomBoxMQTT_setup();
 
     MQTT_startTime = millis();
 
-    for (int i = 0; i < ARRAY_LENGTH(friends); i++) {
-      if (friends[i].feed && friends[i].feed.length() > 0) {
-        const char *feed = friends[i].feed.c_str();
-        ZoomBoxMQTT_subscribe(feed);
-        Serial.println("Subscribed to ");
-        Serial.println(feed);
-      }
-    }
+    ZoomBoxMQTT_subscribe(ZoomBoxMQTT_SharedFeed);
+    Serial.println("Subscribed to ");
+    Serial.println(ZoomBoxMQTT_SharedFeed);
 
     ZoomBoxMQTT_connect();
 
@@ -41,7 +39,7 @@ void loop() {
     // handle any events that are in the queue
     eventManager.processEvent();
     
-    readUltrasonic();
+    detectWave();
     detectPhone();
 
     unsigned long MQTT_currentTime = millis();

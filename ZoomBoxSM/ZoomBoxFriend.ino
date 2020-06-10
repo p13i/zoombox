@@ -6,11 +6,9 @@ class Friend {
     const static char LEAVE_CALL = 'L';
     
     String name;
-    String feed;
-    int id;
-    Friend(String name, String feed, int id) {
+    char id;
+    Friend(String name, char id) {
       this->name = name;
-      this->feed = feed;
       this->id = id;
     }
 };
@@ -18,18 +16,15 @@ class Friend {
 Friend friends[] = { 
   Friend(
     /* name: */ "Delara",
-    /* feed: */ "dmohtasham/feeds/zoombox",
-    /* id: */ 1), 
+    /* id: */ 'D'), 
   Friend(
     /* name: */ "Pramod",
-    /* feed: */ "p13i/feeds/zoombox",
-    /* id: */ 2), 
+    /* id: */ 'P'), 
   Friend(
     /* name: */ "Eric",
-    /* feed: */ "",
-    /* id: */ 3) };
+    /* id: */ 'E') };
 
-String getFriendName(int id) {
+String getFriendName(char id) {
   for (int i = 0; i < ARRAY_LENGTH(friends); i++) {
     if (friends[i].id == id) {
       return friends[i].name;
@@ -38,25 +33,19 @@ String getFriendName(int id) {
   return "<unknown>";
 }
 
-int getFriendId(String feed) {
-  for (int i = 0; i < ARRAY_LENGTH(friends); i++) {
-    if (friends[i].feed.equals(feed)) {
-      return friends[i].id;
-    }
-  }
-  return -1;
-}
-
-Friend me = friends[1];
+Friend me = friends[ZoomBoxFriend_MeIndex];
 
 void ZoomBoxFriend_signalAvailability() {
-  ZoomBoxMQTT_publish(me.feed.c_str(), Friend::AVAILABLE);
+  String message = String(Friend::AVAILABLE) + " " + String(me.id);
+  ZoomBoxMQTT_publish(ZoomBoxMQTT_SharedFeed, message.c_str());
 }
 
 void ZoomBoxFriend_signalStartCall() {
-  ZoomBoxMQTT_publish(me.feed.c_str(), Friend::START_CALL);
+  String message = String(Friend::START_CALL) + " " + String(me.id);
+  ZoomBoxMQTT_publish(ZoomBoxMQTT_SharedFeed, message.c_str());
 }
 
 void ZoomBoxFriend_signalLeaveCall() {
-  ZoomBoxMQTT_publish(me.feed.c_str(), Friend::LEAVE_CALL);
+  String message = String(Friend::LEAVE_CALL) + " " + String(me.id);
+  ZoomBoxMQTT_publish(ZoomBoxMQTT_SharedFeed, message.c_str());
 }
