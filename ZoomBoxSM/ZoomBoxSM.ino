@@ -102,8 +102,8 @@ EventManager eventManager;
 #define EVENT_PHONE_REMOVED EventManager::kEventUser2
 #define EVENT_FRIEND_AVAILABLE EventManager::kEventUser3
 #define EVENT_FRIEND_STARTED_CALL EventManager::kEventUser4
-#define EVENT_FRIEND_LEFT_CALL EventManager::kEventUser4
-#define EVENT_FRIEND_UNAVAILABLE EventManager::kEventUser4
+#define EVENT_FRIEND_LEFT_CALL EventManager::kEventUser5
+#define EVENT_FRIEND_UNAVAILABLE EventManager::kEventUser6
 
 // states for state machine
 enum SystemState_t {STATE_ON_CALL, STATE_WAITING, STATE_IDLE};
@@ -113,10 +113,22 @@ SystemState_t currentState = STATE_IDLE;
 //        Functions 
 //---------------------------------
 
-void turnOnAllLedsWithRainbow() {
+void signalFriendAvailable(char friendId) {
+  int startIndex = getFriendLedStartIndex(friendId);
+  int endIndex = getFriendLedEndIndex(friendId);
+  uint32_t color = getFriendLedColor(friendId);
+
+  for (int i = startIndex; i <= endIndex; i++) {
+    pixels.setPixelColor(i, color);
+    pixels.setBrightness(10);
+  }
+  pixels.show();
 }
 
-void signalFriendAvailable(char friendId) {
+void signalFriendOnCall(char friendId) {
+  Serial.print("Setting bright leds for friend with id=");
+  Serial.println(friendId);
+  
   int startIndex = getFriendLedStartIndex(friendId);
   int endIndex = getFriendLedEndIndex(friendId);
   uint32_t color = getFriendLedColor(friendId);
@@ -134,7 +146,7 @@ void signalFriendUnavailable(char friendId) {
 
   for (int i = startIndex; i <= endIndex; i++) {
     pixels.setPixelColor(i, PIXEL_OFF);
-    pixels.setBrightness(50);
+    pixels.setBrightness(10);
   }
   pixels.show();
 }
@@ -301,6 +313,7 @@ void ZOOMBOX_SM( int event, int param) {
 
               signalFriendUnavailable((char) param);
             }
+            
             break;          
         case STATE_WAITING:
         
@@ -337,6 +350,7 @@ void ZOOMBOX_SM( int event, int param) {
             if (event == EVENT_FRIEND_STARTED_CALL) {
               Serial.print("WAITING -> friend started zoom call id=");
               Serial.println((char) param);
+              signalFriendOnCall(param);
               nextState = STATE_ON_CALL;
             }
 
@@ -355,6 +369,12 @@ void ZOOMBOX_SM( int event, int param) {
               nextState = STATE_IDLE;
             } 
 
+            if (event == EVENT_FRIEND_STARTED_CALL) {
+              Serial.print("ON CALL -> friend started zoom call id=");
+              Serial.println((char) param);
+              signalFriendOnCall(param);
+            }
+            
             if (event == EVENT_FRIEND_LEFT_CALL) {
               Serial.print("ON CALL-> friend left call id=");
               Serial.println((char) param);

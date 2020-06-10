@@ -122,6 +122,7 @@ void ZoomBoxMQTT_callback(char *topic, byte *payload, unsigned int payloadLength
   if (message == Friend::AVAILABLE) {
     eventManager.queueEvent(EVENT_FRIEND_AVAILABLE, friendId);
   } else if (message == Friend::START_CALL) {
+    Serial.println("Queuing event EVENT_FRIEND_STARTED_CALL");
     eventManager.queueEvent(EVENT_FRIEND_STARTED_CALL, friendId);
   } else if (message == Friend::LEAVE_CALL) {
     eventManager.queueEvent(EVENT_FRIEND_LEFT_CALL, friendId);

@@ -29,6 +29,8 @@ void setup() {
     eventManager.addListener(EVENT_WAVE_DETECTED, ZOOMBOX_SM);
     eventManager.addListener(EVENT_PHONE_DOCKED, ZOOMBOX_SM);
     eventManager.addListener(EVENT_PHONE_REMOVED, ZOOMBOX_SM);
+    eventManager.addListener(EVENT_FRIEND_STARTED_CALL, ZOOMBOX_SM);
+    eventManager.addListener(EVENT_FRIEND_LEFT_CALL, ZOOMBOX_SM);
     eventManager.addListener(EVENT_FRIEND_AVAILABLE, ZOOMBOX_SM);
     eventManager.addListener(EVENT_FRIEND_UNAVAILABLE, ZOOMBOX_SM);
 
@@ -38,7 +40,7 @@ void setup() {
 
 void loop() {
     // handle any events that are in the queue
-    eventManager.processEvent();
+    eventManager.processAllEvents();
     
     detectWave();
     detectPhone();
