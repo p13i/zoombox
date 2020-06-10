@@ -30,6 +30,7 @@ void setup() {
     eventManager.addListener(EVENT_PHONE_DOCKED, ZOOMBOX_SM);
     eventManager.addListener(EVENT_PHONE_REMOVED, ZOOMBOX_SM);
     eventManager.addListener(EVENT_FRIEND_AVAILABLE, ZOOMBOX_SM);
+    eventManager.addListener(EVENT_FRIEND_UNAVAILABLE, ZOOMBOX_SM);
 
     // initialize LED state machine
     ZOOMBOX_SM(STATE_IDLE, 0);

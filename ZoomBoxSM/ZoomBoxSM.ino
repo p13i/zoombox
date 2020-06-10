@@ -103,6 +103,7 @@ EventManager eventManager;
 #define EVENT_FRIEND_AVAILABLE EventManager::kEventUser3
 #define EVENT_FRIEND_STARTED_CALL EventManager::kEventUser4
 #define EVENT_FRIEND_LEFT_CALL EventManager::kEventUser4
+#define EVENT_FRIEND_UNAVAILABLE EventManager::kEventUser4
 
 // states for state machine
 enum SystemState_t {STATE_ON_CALL, STATE_WAITING, STATE_IDLE};
@@ -112,23 +113,30 @@ SystemState_t currentState = STATE_IDLE;
 //        Functions 
 //---------------------------------
 
-/* signalFriends()
- *  turns on my pixel on friends' devices
- *  @param brightnessLevel - brightness level of my LED
- *  @return none */
-void signalFriends(int brightnessLevel) {
-    pixels.clear(); // set all pixel colors to 'off'
-
-    // pixels.Color() takes RGB values, from 0,0,0 up to 255,255,255
-    pixels.setPixelColor(MY_LED_ID, pixels.Color(0,255,0)); // bright green color
-    pixels.setBrightness(brightnessLevel);
-    pixels.show();   // send the updated pixel colors to the hardware
-}
-
 void turnOnAllLedsWithRainbow() {
 }
 
-void turnOffAllLeds() {
+void signalFriendAvailable(char friendId) {
+  int startIndex = getFriendLedStartIndex(friendId);
+  int endIndex = getFriendLedEndIndex(friendId);
+  uint32_t color = getFriendLedColor(friendId);
+
+  for (int i = startIndex; i <= endIndex; i++) {
+    pixels.setPixelColor(i, color);
+    pixels.setBrightness(50);
+  }
+  pixels.show();
+}
+
+void signalFriendUnavailable(char friendId) {
+  int startIndex = getFriendLedStartIndex(friendId);
+  int endIndex = getFriendLedEndIndex(friendId);
+
+  for (int i = startIndex; i <= endIndex; i++) {
+    pixels.setPixelColor(i, PIXEL_OFF);
+    pixels.setBrightness(50);
+  }
+  pixels.show();
 }
 
 void signalWiFiConnected() {
@@ -229,7 +237,6 @@ void detectWave() {
   if (featureCount == 5) { 
     Serial.println("Detected wave!");
     // if wave detected
-    signalFriends(active); // make brighter LED on friends devices 
     eventManager.queueEvent(EVENT_WAVE_DETECTED, eventParameter);
     //Serial.println("wave detected");
     // turn on LED for 2 seconds
@@ -278,10 +285,22 @@ void ZOOMBOX_SM( int event, int param) {
 
               ZoomBoxFriend_signalAvailability();
               
-              signalFriends(waiting); // turn on LED on friends devices 
               nextState = STATE_WAITING;
             } 
   
+            if (event == EVENT_FRIEND_AVAILABLE) {
+              Serial.print("IDLE -> friend available id=");
+              Serial.println((char) param);
+
+              signalFriendAvailable((char) param);
+            }
+            
+            if (event == EVENT_FRIEND_UNAVAILABLE) {
+              Serial.print("IDLE -> friend unavailable id=");
+              Serial.println((char) param);
+
+              signalFriendUnavailable((char) param);
+            }
             break;          
         case STATE_WAITING:
         
@@ -290,22 +309,29 @@ void ZOOMBOX_SM( int event, int param) {
               // launch zoom call
               ZoomBoxFriend_signalStartCall();
               
-              signalFriends(active); // make brighter LED on friends devices 
               nextState = STATE_ON_CALL;
             }  
 
            if (event == EVENT_PHONE_REMOVED) {
               Serial.println("WAITING -> phone removed");
               
-              ZoomBoxFriend_signalLeaveCall();
+              ZoomBoxFriend_signalUnavailable();
               
-              goIdle(); // turn off LEDs on friends devices
-              nextState = STATE_IDLE;  
+              nextState = STATE_IDLE;
             }
 
             if (event == EVENT_FRIEND_AVAILABLE) {
               Serial.print("WAITING -> friend available id=");
               Serial.println((char) param);
+
+              signalFriendAvailable((char) param);
+            }
+            
+            if (event == EVENT_FRIEND_UNAVAILABLE) {
+              Serial.print("WAITING -> friend unavailable id=");
+              Serial.println((char) param);
+
+              signalFriendUnavailable((char) param);
             }
             
             if (event == EVENT_FRIEND_STARTED_CALL) {
@@ -320,13 +346,12 @@ void ZOOMBOX_SM( int event, int param) {
             if (event == EVENT_WAVE_DETECTED) {
               Serial.println("ON CALL-> wave detected");
               ZoomBoxFriend_signalLeaveCall();
-              signalFriends(waiting); // lower LED brightness
               nextState = STATE_WAITING;
             } 
             
             if (event == EVENT_PHONE_REMOVED) {
               Serial.println("ON CALL-> phone removed");
-              goIdle(); // turn off LEDs on friends devices
+              ZoomBoxFriend_signalUnavailable();
               nextState = STATE_IDLE;
             } 
 
@@ -334,8 +359,16 @@ void ZOOMBOX_SM( int event, int param) {
               Serial.print("ON CALL-> friend left call id=");
               Serial.println((char) param);
               
-              goIdle(); // turn off LEDs on friends devices
+              signalFriendUnavailable((char) param);
+
               nextState = STATE_IDLE;
+            }
+            
+            if (event == EVENT_FRIEND_UNAVAILABLE) {
+              Serial.print("ON_CALL -> friend unavailable id=");
+              Serial.println((char) param);
+
+              signalFriendUnavailable((char) param);
             }
 
             break;         
